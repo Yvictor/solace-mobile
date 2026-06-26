@@ -1,0 +1,23 @@
+# ─── Vendored Solace SDK (proprietary, not committed) ───────────────
+# Obtain from Solace and extract here — see README.md
+solclient_ios/
+solclient_macos/
+*.tar.gz
+
+# Generated binary artifacts
+*.xcframework
+Frameworks/
+
+# ─── SwiftPM ────────────────────────────────────────────────────────
+.build/
+.swiftpm/
+Package.resolved
+
+# ─── Xcode ──────────────────────────────────────────────────────────
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# ─── macOS ──────────────────────────────────────────────────────────
+.DS_Store
