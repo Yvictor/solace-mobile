@@ -16,4 +16,6 @@ int csolace_connect_smoke(const char *host,
                           const char *compressionLevel,
                           int waitSeconds);
 
+solClient_returnCode_t csolace_context_create_with_thread(solClient_opaqueContext_pt *context);
+
 #endif

@@ -1,0 +1,204 @@
+import CSolace
+import Foundation
+
+public final class SolaceSession: @unchecked Sendable {
+    private var context: solClient_opaqueContext_pt?
+    private var session: solClient_opaqueSession_pt?
+    private let lock = NSLock()
+    private var continuation: AsyncThrowingStream<SolaceMessage, Error>.Continuation?
+
+    public let messages: AsyncThrowingStream<SolaceMessage, Error>
+
+    private init() {
+        var localContinuation: AsyncThrowingStream<SolaceMessage, Error>.Continuation?
+        self.messages = AsyncThrowingStream { continuation in
+            localContinuation = continuation
+        }
+        self.continuation = localContinuation
+    }
+
+    deinit {
+        close()
+    }
+
+    public static func connect(_ configuration: SolaceConnectionConfiguration) throws -> SolaceSession {
+        try SolaceEnvironment.shared.retain()
+        do {
+            let instance = SolaceSession()
+            try instance.open(configuration)
+            return instance
+        } catch {
+            SolaceEnvironment.shared.release()
+            throw error
+        }
+    }
+
+    public func subscribe(_ topic: String) throws {
+        guard let session else {
+            throw SolaceError(operation: "subscribe", returnCode: "Not connected", subCode: "", detail: "")
+        }
+        try check(
+            "solClient_session_topicSubscribeExt",
+            solClient_session_topicSubscribeExt(
+                session,
+                solClient_subscribeFlags_t(SOLCLIENT_SUBSCRIBE_FLAGS_WAITFORCONFIRM),
+                topic
+            )
+        )
+    }
+
+    public func unsubscribe(_ topic: String) throws {
+        guard let session else {
+            return
+        }
+        try check(
+            "solClient_session_topicUnsubscribeExt",
+            solClient_session_topicUnsubscribeExt(
+                session,
+                solClient_subscribeFlags_t(SOLCLIENT_SUBSCRIBE_FLAGS_WAITFORCONFIRM),
+                topic
+            )
+        )
+    }
+
+    public func close() {
+        lock.lock()
+        let currentSession = session
+        let currentContext = context
+        session = nil
+        context = nil
+        let currentContinuation = continuation
+        continuation = nil
+        lock.unlock()
+
+        if let currentSession {
+            _ = solClient_session_disconnect(currentSession)
+            var mutableSession: solClient_opaqueSession_pt? = currentSession
+            _ = solClient_session_destroy(&mutableSession)
+        }
+        if let currentContext {
+            var mutableContext: solClient_opaqueContext_pt? = currentContext
+            _ = solClient_context_destroy(&mutableContext)
+        }
+
+        currentContinuation?.finish()
+        SolaceEnvironment.shared.release()
+    }
+
+    private func open(_ configuration: SolaceConnectionConfiguration) throws {
+        try check(
+            "solClient_context_create",
+            csolace_context_create_with_thread(&context)
+        )
+
+        var sessionInfo = solClient_session_createFuncInfo_t()
+        sessionInfo.rxMsgInfo.callback_p = Self.receiveMessageCallback
+        sessionInfo.rxMsgInfo.user_p = Unmanaged.passUnretained(self).toOpaque()
+        sessionInfo.eventInfo.callback_p = Self.eventCallback
+        sessionInfo.eventInfo.user_p = Unmanaged.passUnretained(self).toOpaque()
+
+        try withSessionProperties(configuration) { props in
+            try check(
+                "solClient_session_create",
+                solClient_session_create(
+                    props,
+                    context,
+                    &session,
+                    &sessionInfo,
+                    MemoryLayout<solClient_session_createFuncInfo_t>.size
+                )
+            )
+        }
+
+        guard let session else {
+            throw SolaceError(operation: "solClient_session_create", returnCode: "No session", subCode: "", detail: "")
+        }
+        try check("solClient_session_connect", solClient_session_connect(session))
+    }
+
+    private func handleMessage(_ message: solClient_opaqueMsg_pt?) -> solClient_rxMsgCallback_returnCode_t {
+        guard let message else {
+            return SOLCLIENT_CALLBACK_OK
+        }
+        let copied = SolaceMessage.copy(from: message)
+        lock.lock()
+        let currentContinuation = continuation
+        lock.unlock()
+        currentContinuation?.yield(copied)
+        return SOLCLIENT_CALLBACK_OK
+    }
+
+    private func handleEvent(_ eventInfo: solClient_session_eventCallbackInfo_pt?) {
+        guard let eventInfo else {
+            return
+        }
+        switch eventInfo.pointee.sessionEvent {
+        case SOLCLIENT_SESSION_EVENT_DOWN_ERROR,
+             SOLCLIENT_SESSION_EVENT_CONNECT_FAILED_ERROR:
+            let detail = eventInfo.pointee.info_p.map(String.init(cString:)) ?? ""
+            let error = SolaceError(
+                operation: "session event",
+                returnCode: solClient_session_eventToString(eventInfo.pointee.sessionEvent).map(String.init(cString:)) ?? "Unknown",
+                subCode: "",
+                detail: detail
+            )
+            lock.lock()
+            let currentContinuation = continuation
+            lock.unlock()
+            currentContinuation?.finish(throwing: error)
+        default:
+            break
+        }
+    }
+
+    private static let receiveMessageCallback: solClient_session_rxMsgCallbackFunc_t = { _, message, user in
+        guard let user else {
+            return SOLCLIENT_CALLBACK_OK
+        }
+        return Unmanaged<SolaceSession>
+            .fromOpaque(user)
+            .takeUnretainedValue()
+            .handleMessage(message)
+    }
+
+    private static let eventCallback: solClient_session_eventCallbackFunc_t = { _, eventInfo, user in
+        guard let user else {
+            return
+        }
+        Unmanaged<SolaceSession>
+            .fromOpaque(user)
+            .takeUnretainedValue()
+            .handleEvent(eventInfo)
+    }
+}
+
+private func withSessionProperties<T>(
+    _ configuration: SolaceConnectionConfiguration,
+    _ body: (solClient_propertyArray_pt) throws -> T
+) rethrows -> T {
+    let values = [
+        SOLCLIENT_SESSION_PROP_HOST, configuration.host,
+        SOLCLIENT_SESSION_PROP_VPN_NAME, configuration.vpn,
+        SOLCLIENT_SESSION_PROP_USERNAME, configuration.username,
+        SOLCLIENT_SESSION_PROP_PASSWORD, configuration.password,
+        SOLCLIENT_SESSION_PROP_COMPRESSION_LEVEL, "\(configuration.compressionLevel)",
+        SOLCLIENT_SESSION_PROP_CONNECT_BLOCKING, SOLCLIENT_PROP_ENABLE_VAL,
+        SOLCLIENT_SESSION_PROP_SUBSCRIBE_BLOCKING, SOLCLIENT_PROP_ENABLE_VAL,
+        SOLCLIENT_SESSION_PROP_REAPPLY_SUBSCRIPTIONS, SOLCLIENT_PROP_ENABLE_VAL,
+        SOLCLIENT_SESSION_PROP_CONNECT_TIMEOUT_MS, "\(configuration.connectTimeoutMilliseconds)",
+        SOLCLIENT_SESSION_PROP_RECONNECT_RETRIES, "\(configuration.reconnectRetries)"
+    ]
+
+    let cStrings = values.map { strdup($0) }
+    defer {
+        for pointer in cStrings {
+            free(pointer)
+        }
+    }
+
+    var props = cStrings.map { UnsafePointer<CChar>($0) }
+    props.append(nil)
+    return try props.withUnsafeMutableBufferPointer { buffer in
+        try body(buffer.baseAddress!)
+    }
+}

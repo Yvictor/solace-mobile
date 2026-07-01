@@ -21,6 +21,8 @@ let package = Package(
     ],
     products: [
         .library(name: "CSolace", targets: ["CSolace"]),
+        .library(name: "SolaceCore", targets: ["SolaceCore"]),
+        .library(name: "SolaceKit", targets: ["SolaceKit"]),
         .executable(name: "SolaceMacSmoke", targets: ["SolaceMacSmoke"]),
         .executable(name: "SolaceMacConnectSmoke", targets: ["SolaceMacConnectSmoke"])
     ],
@@ -33,6 +35,16 @@ let package = Package(
                 .define("SOLCLIENT_CONST_PROPERTIES")
             ]
         ),
+        .target(
+            name: "SolaceCore",
+            dependencies: ["CSolace"],
+            linkerSettings: solclientLinkerSettings
+        ),
+        .target(
+            name: "SolaceKit",
+            dependencies: ["SolaceCore"],
+            linkerSettings: solclientLinkerSettings
+        ),
         .executableTarget(
             name: "SolaceMacSmoke",
             dependencies: ["CSolace"],
@@ -40,7 +52,12 @@ let package = Package(
         ),
         .executableTarget(
             name: "SolaceMacConnectSmoke",
-            dependencies: ["CSolace"],
+            dependencies: ["SolaceKit"],
+            linkerSettings: solclientLinkerSettings
+        ),
+        .testTarget(
+            name: "SolaceCoreTests",
+            dependencies: ["SolaceCore"],
             linkerSettings: solclientLinkerSettings
         )
     ]

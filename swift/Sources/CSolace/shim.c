@@ -49,6 +49,14 @@ static void csolace_event_callback(solClient_opaqueSession_pt session,
     }
 }
 
+solClient_returnCode_t csolace_context_create_with_thread(solClient_opaqueContext_pt *context) {
+    solClient_context_createFuncInfo_t contextInfo = SOLCLIENT_CONTEXT_CREATEFUNC_INITIALIZER;
+    return solClient_context_create(SOLCLIENT_CONTEXT_PROPS_DEFAULT_WITH_CREATE_THREAD,
+                                    context,
+                                    &contextInfo,
+                                    sizeof(contextInfo));
+}
+
 int csolace_connect_smoke(const char *host,
                           const char *vpn,
                           const char *username,

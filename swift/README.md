@@ -4,8 +4,8 @@ Swift bindings for the [Solace PubSub+](https://solace.com/) C messaging API
 (`libsolclient`), targeting **macOS** and **iOS** with a modern Swift-native,
 `async/await` surface.
 
-> Status: **Phase 1 — macOS C binding smoke passed.** SwiftPM can build and run
-> against the Solace C SDK on macOS arm64.
+> Status: **Phase 3 — Swift async subscribe path verified on macOS.** The live
+> broker smoke uses `SolaceKit -> SolaceCore -> CSolace` with native compression.
 
 ## Why
 
@@ -82,7 +82,8 @@ archives.
 ## macOS broker connect smoke
 
 `SolaceMacConnectSmoke` performs a real native Solace connection using values
-from environment variables. It does not store credentials in the repository.
+from environment variables or a local `.env` file. It does not store
+credentials in the repository.
 
 ```bash
 SOLACE_HOST='host:port' \
@@ -95,28 +96,52 @@ SOLACE_WAIT_SECONDS='10' \
 swift run --package-path swift SolaceMacConnectSmoke
 ```
 
-The smoke does:
+The smoke uses the public `SolaceKit` API and does:
 
-- `solClient_initialize()`
-- context/session creation
-- blocking `solClient_session_connect()`
-- `solClient_session_topicSubscribeExt(...WAITFORCONFIRM...)`
-- waits for direct messages
+- async `SolaceClient.connect(...)`
+- `SolaceKitSession.subscribe(...)`
+- `for try await` over `session.messages`
 - unsubscribe/disconnect/destroy/cleanup
 
-The first live run against the provided broker returned `Session up`,
-`solClient_session_connect: Ok`, and `solClient_session_topicSubscribeExt: Ok`
-with compression level `3`. No messages arrived during the 10-second wait
-window.
+The latest live run against the provided broker returned `connect: Ok`,
+`subscribe: Ok`, and received 34 direct messages in a 10-second window with
+compression level `3`.
+
+## Library API
+
+Minimal high-level usage:
+
+```swift
+let client = SolaceClient()
+let session = try await client.connect(
+    SolaceConfiguration(
+        host: "host:port",
+        vpn: "vpn",
+        username: "username",
+        password: "password",
+        compressionLevel: 3
+    )
+)
+
+try await session.subscribe("TIC/v1/FOP/*/TFE/TXFG6")
+
+for try await message in session.messages {
+    print(message.topic ?? "", message.payload.count)
+}
+```
+
+`SolaceCore` owns native context/session lifetime, maps return codes to
+`SolaceError`, bridges C callbacks through `user_p`, and copies topic/payload
+data before returning from the C callback.
 
 ## Roadmap
 
 - [x] **Phase 0** — verify `solClient_initialize()` links and runs on macOS
 - [x] **Phase 1** — `CSolace` C interop target exposing the required headers
 - [x] **Phase 2a** — native broker connect/subscribe smoke with compression
-- [ ] **Phase 2b** — `SolaceCore`: context/session lifecycle, callback bridging
+- [x] **Phase 2b** — `SolaceCore`: context/session lifecycle, callback bridging
   via `Unmanaged` + `user_p`, return-code → `SolaceError`
-- [ ] **Phase 3** — `SolaceKit`: `async/await` connect/subscribe,
+- [x] **Phase 3** — `SolaceKit`: `async/await` connect/subscribe,
   `AsyncThrowingStream<Message>` for received messages
 - [ ] **Phase 4** — iOS packaging strategy, guaranteed messaging / flows,
   reconnect, docs, example app
