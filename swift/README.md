@@ -4,9 +4,10 @@ Swift bindings for the [Solace PubSub+](https://solace.com/) C messaging API
 (`libsolclient`), targeting **macOS** and **iOS** with a modern Swift-native,
 `async/await` surface.
 
-> Status: **Phase 4c.2 in progress — Swift native broker smoke and example app
-> build are verified on macOS.** The live broker smoke uses
-> `SolaceKit -> SolaceCore -> CSolace` with native compression.
+> Status: **Current mobile PoC roadmap complete — macOS broker smoke, macOS
+> SwiftUI example app, and Intel iOS Simulator direct subscribe are verified.** The
+> live broker smokes use `SolaceKit -> SolaceCore -> CSolace` with native
+> compression.
 
 ## Why
 
@@ -33,7 +34,8 @@ layers so application code never touches raw C:
 |--------|--------|-------|
 | macOS (arm64 + x86_64) | ✅ | universal2 static lib; SwiftPM smoke test passes on arm64 |
 | iOS device (arm64) | ✅ | device-only static slice |
-| iOS Simulator (Apple Silicon) | ❌ | SDK 7.25.0.10 ships **no** `arm64-apple-ios-simulator` slice — use a physical device, or run the simulator under Rosetta (x86_64) |
+| iOS Simulator (Intel x86_64) | ✅ | `SolaceMobileIOS` Xcode app wrapper build/install/launch/direct-subscribe tested on iPhone SE simulator |
+| iOS Simulator (Apple Silicon arm64) | ❌ | SDK 7.25.0.10 ships **no** `arm64-apple-ios-simulator` slice — use a physical device, or run the simulator under Rosetta/x86_64 |
 
 ## Vendored SDK (not in this repo)
 
@@ -90,6 +92,49 @@ bash swift/scripts/build-xcframework.sh
 
 Details and simulator limits are documented in
 [`Docs/iOSPackaging.md`](Docs/iOSPackaging.md).
+
+## iOS simulator smoke app
+
+The `ios/` folder contains an XcodeGen project wrapper for a real iOS app
+target that depends on this Swift package's `SolaceKit` product.
+
+Generate the project:
+
+```bash
+cd ios
+xcodegen generate
+```
+
+Build the Intel simulator target from the repository root:
+
+```bash
+xcodebuild \
+  -project ios/SolaceMobileIOS.xcodeproj \
+  -scheme SolaceMobileIOS \
+  -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)' \
+  -sdk iphonesimulator \
+  ARCHS=x86_64 \
+  ONLY_ACTIVE_ARCH=YES \
+  build
+```
+
+This has been verified locally with iOS Simulator 18.1. The app launches and
+renders a SwiftUI screen that imports `SolaceKit`, links the native Solace iOS
+SDK through the Swift package, connects with compression, subscribes to
+`TIC/v1/FOP/*/TFE/TXFG6`, and receives live direct messages. The app leaves the
+password blank for manual entry.
+
+Successful subscription is visible in the app's `Quote Status` section:
+`Received` increments above zero and the latest received topic/byte count is
+shown without scrolling. The detailed message log includes lines such as:
+
+```text
+connect: Ok
+subscribe: Ok TIC/v1/FOP/*/TFE/TXFG6
+message: TIC/v1/FOP/BCDMZPCR01/TFE/TXFG6, bytes=125
+```
+
+See `../ios/README.md` for the end-to-end simulator workflow.
 
 ## SwiftUI example app
 
@@ -168,16 +213,16 @@ SOLACE_FLOW_PUBLISH_COUNT='1' \
 swift run --package-path swift SolaceMacConnectSmoke
 ```
 
-This requires the connected broker/client profile to report all of:
+This optional guaranteed flow path requires the connected broker/client profile
+to report all of:
 
 - `PUB_GUARANTEED=true`
 - `SUB_FLOW_GUARANTEED=true`
 - `TEMP_ENDPOINT=true`
 
-The currently provided broker profile connects successfully with compression,
-but reports `PUB_GUARANTEED=false`, `SUB_FLOW_GUARANTEED=false`, and
-`TEMP_ENDPOINT=false`; guaranteed flow bind is therefore rejected before queue or
-Topic Endpoint ack can be live-validated on that profile.
+The currently provided broker profile connects successfully with compression
+and receives direct messages. Guaranteed queue flow/ack is intentionally not a
+required gate for the current mobile PoC.
 
 ## macOS reconnect stress smoke
 
@@ -271,8 +316,14 @@ data before returning from the C callback.
 - [x] **Phase 4c.1** — guaranteed queue flow receive/ack API foundation
 - [x] **Phase 4c.2a** — SwiftUI example app
 - [x] **Phase 4c.2b** — queue/reconnect pass-fail smoke harnesses
-- [ ] **Phase 4c.2c** — broker-backed queue bind/ack live gate and induced
-  reconnect live gate on a broker/client profile with guaranteed flow support
+- [x] **Phase 4c.2c** — Intel iOS Simulator direct subscribe app with visible
+  received quote count and latest message summary
+
+Deferred, not required for the current mobile PoC:
+
+- broker-backed guaranteed queue bind/ack live gate on a broker/client profile
+  with guaranteed flow support
+- induced reconnect live gate against a controllable broker/network path
 
 ## License
 

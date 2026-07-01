@@ -4,20 +4,29 @@ import PackageDescription
 
 let sdkRoot = "../solclient_macos/solclient_Darwin-universal2_opt_7.25.0.10"
 let sdkLib = "\(sdkRoot)/lib"
+let iosSdkRoot = "../solclient_ios/solclient-7.25.0.10"
+let iosSdkLib = "\(iosSdkRoot)/lib"
 let solclientLinkerSettings: [LinkerSetting] = [
-    .linkedLibrary("gssapi_krb5"),
+    .linkedLibrary("gssapi_krb5", .when(platforms: [.macOS])),
     .unsafeFlags([
         "\(sdkLib)/libsolclient.a.7.25.0.10",
         "\(sdkLib)/libssl.a",
         "\(sdkLib)/libcrypto.a",
         "-lz"
-    ])
+    ], .when(platforms: [.macOS])),
+    .unsafeFlags([
+        "\(iosSdkLib)/libsolclient.a",
+        "\(iosSdkLib)/libssl-universal.a",
+        "\(iosSdkLib)/libcrypto-universal.a",
+        "-lz"
+    ], .when(platforms: [.iOS]))
 ]
 
 let package = Package(
     name: "SolaceMobileSwift",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v13),
+        .iOS(.v16)
     ],
     products: [
         .library(name: "CSolace", targets: ["CSolace"]),
