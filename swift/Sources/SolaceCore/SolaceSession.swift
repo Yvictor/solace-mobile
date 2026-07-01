@@ -69,6 +69,13 @@ public final class SolaceSession: @unchecked Sendable {
         )
     }
 
+    public func createQueueFlow(_ configuration: SolaceQueueFlowConfiguration) throws -> SolaceQueueFlow {
+        guard let session else {
+            throw SolaceError(operation: "solClient_session_createFlow", returnCode: "Not connected", subCode: "", detail: "")
+        }
+        return try SolaceQueueFlow(session: session, configuration: configuration)
+    }
+
     public func publish(
         topic: String,
         payload: Data,

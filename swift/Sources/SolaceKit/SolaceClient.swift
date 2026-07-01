@@ -6,6 +6,10 @@ public typealias Message = SolaceMessage
 public typealias DeliveryMode = SolaceDeliveryMode
 public typealias SessionEvent = SolaceSessionEvent
 public typealias SessionEventKind = SolaceSessionEventKind
+public typealias QueueFlowConfiguration = SolaceQueueFlowConfiguration
+public typealias QueueFlowEvent = SolaceFlowEvent
+public typealias QueueFlowEventKind = SolaceFlowEventKind
+public typealias GuaranteedMessage = SolaceGuaranteedMessage
 
 public final class SolaceClient: Sendable {
     public init() {}
@@ -45,6 +49,13 @@ public final class SolaceKitSession: @unchecked Sendable {
         }.value
     }
 
+    public func createQueueFlow(_ configuration: QueueFlowConfiguration) async throws -> SolaceKitQueueFlow {
+        try await Task.detached { [coreSession] in
+            let flow = try coreSession.createQueueFlow(configuration)
+            return SolaceKitQueueFlow(coreFlow: flow)
+        }.value
+    }
+
     public func publish(
         topic: String,
         payload: Data,
@@ -57,5 +68,37 @@ public final class SolaceKitSession: @unchecked Sendable {
 
     public func close() {
         coreSession.close()
+    }
+}
+
+public final class SolaceKitQueueFlow: @unchecked Sendable {
+    private let coreFlow: SolaceQueueFlow
+
+    public var messages: AsyncThrowingStream<SolaceGuaranteedMessage, Error> {
+        coreFlow.messages
+    }
+
+    public var events: AsyncStream<SolaceFlowEvent> {
+        coreFlow.events
+    }
+
+    init(coreFlow: SolaceQueueFlow) {
+        self.coreFlow = coreFlow
+    }
+
+    public func start() async throws {
+        try await Task.detached { [coreFlow] in
+            try coreFlow.start()
+        }.value
+    }
+
+    public func stop() async throws {
+        try await Task.detached { [coreFlow] in
+            try coreFlow.stop()
+        }.value
+    }
+
+    public func close() {
+        coreFlow.close()
     }
 }

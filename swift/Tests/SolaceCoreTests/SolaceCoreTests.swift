@@ -48,3 +48,27 @@ import Testing
     #expect(event.name == "Session reconnected")
     #expect(event.detail == "host recovered")
 }
+
+@Test func queueFlowConfigurationDefaultsToClientAck() {
+    let configuration = SolaceQueueFlowConfiguration(queueName: "api/test")
+
+    #expect(configuration.queueName == "api/test")
+    #expect(configuration.bindTimeoutMilliseconds == 10_000)
+    #expect(configuration.windowSize == 255)
+    #expect(configuration.maximumUnacknowledgedMessages == -1)
+    #expect(configuration.reconnectRetries == -1)
+    #expect(configuration.reconnectRetryWaitMilliseconds == 3_000)
+    #expect(configuration.startImmediately)
+}
+
+@Test func flowEventIsEquatableAndCarriesDetail() {
+    let event = SolaceFlowEvent(
+        kind: .active,
+        name: "Flow active",
+        detail: "queue is active"
+    )
+
+    #expect(event.kind == .active)
+    #expect(event.name == "Flow active")
+    #expect(event.detail == "queue is active")
+}

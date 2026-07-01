@@ -117,8 +117,16 @@ The smoke uses the public `SolaceKit` API and does:
 - `for try await` over `session.messages`
 - unsubscribe/disconnect/destroy/cleanup
 
+Set `SOLACE_QUEUE` to bind a durable queue with client acknowledgements instead
+of direct topic subscribe. The queue must already exist on the broker and the
+username must be allowed to consume it.
+
+```bash
+SOLACE_QUEUE='queue/name' swift run --package-path swift SolaceMacConnectSmoke
+```
+
 The latest live run against the provided broker returned `connect: Ok`,
-`publish: Ok` to `api/test`, `subscribe: Ok`, and received 20 direct messages
+`publish: Ok` to `api/test`, `subscribe: Ok`, and received 11 direct messages
 in a 10-second window with compression level `3`.
 
 ## Library API
@@ -153,6 +161,19 @@ for await event in session.events {
 }
 ```
 
+Guaranteed queue receive uses a flow and client ack:
+
+```swift
+let flow = try await session.createQueueFlow(
+    QueueFlowConfiguration(queueName: "queue/name")
+)
+
+for try await message in flow.messages {
+    print(message.messageID, message.payload.count)
+    try message.acknowledge()
+}
+```
+
 `SolaceCore` owns native context/session lifetime, maps return codes to
 `SolaceError`, bridges C callbacks through `user_p`, and copies topic/payload
 data before returning from the C callback.
@@ -169,7 +190,8 @@ data before returning from the C callback.
 - [x] **Phase 4a** — publish foundation: direct/persistent/non-persistent
   delivery mode API, live direct publish smoke, reconnect subscription reapply
 - [x] **Phase 4b** — iOS packaging strategy and reconnect/session event stream
-- [ ] **Phase 4c** — guaranteed flow receive/ack, reconnect stress tests,
+- [x] **Phase 4c.1** — guaranteed queue flow receive/ack API foundation
+- [ ] **Phase 4c.2** — broker-backed queue bind/ack smoke, reconnect stress tests,
   example app
 
 ## License

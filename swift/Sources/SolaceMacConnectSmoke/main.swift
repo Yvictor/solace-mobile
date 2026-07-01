@@ -53,6 +53,7 @@ struct SolaceMacConnectSmoke {
         let username = requiredEnv("SOLACE_USERNAME")
         let password = requiredEnv("SOLACE_PASSWORD")
         let topic = env("SOLACE_TOPIC") ?? "TIC/v1/FOP/*/TFE/TXFG6"
+        let queueName = env("SOLACE_QUEUE")
         let publishTopic = env("SOLACE_PUBLISH_TOPIC")
         let publishText = env("SOLACE_PUBLISH_TEXT") ?? "solace-mobile swift smoke"
         let compressionLevel = Int(env("SOLACE_COMPRESSION_LEVEL") ?? "0") ?? 0
@@ -96,6 +97,55 @@ struct SolaceMacConnectSmoke {
                     deliveryMode: .direct
                 )
                 print("publish: Ok")
+            }
+
+            if let queueName {
+                let flow = try await session.createQueueFlow(QueueFlowConfiguration(queueName: queueName))
+                print("queue flow bind: Ok")
+
+                let flowEvents = Task<Int, Never> {
+                    var count = 0
+                    for await event in flow.events {
+                        count += 1
+                        print("flow event #\(count): \(event.name)")
+                        if !event.detail.isEmpty {
+                            print("  detail: \(event.detail)")
+                        }
+                    }
+                    return count
+                }
+
+                let flowReceiver = Task<Int, Error> {
+                    var count = 0
+                    for try await message in flow.messages {
+                        count += 1
+                        print("guaranteed message received #\(count)")
+                        if let topic = message.topic {
+                            print("  topic: \(topic)")
+                        }
+                        print("  message id: \(message.messageID)")
+                        print("  payload bytes: \(message.payload.count)")
+                        try message.acknowledge()
+                        print("  ack: Ok")
+                    }
+                    return count
+                }
+
+                print("waiting \(waitSeconds) seconds for queue messages...")
+                try await Task.sleep(nanoseconds: waitSeconds * 1_000_000_000)
+                try await flow.stop()
+                print("queue flow stop: Ok")
+                flow.close()
+
+                let flowCount = try await flowReceiver.value
+                let flowEventCount = await flowEvents.value
+                print("guaranteed messages received: \(flowCount)")
+                print("flow events received: \(flowEventCount)")
+                session.close()
+
+                let eventCount = await eventReceiver.value
+                print("session events received: \(eventCount)")
+                return
             }
 
             try await session.subscribe(topic)
