@@ -1,4 +1,4 @@
-# solace-swift — 開發計畫 (PLAN)
+# solace-mobile Swift — 開發計畫 (PLAN)
 
 Swift bindings for the Solace PubSub+ C API (`libsolclient` 7.25.0.10),
 targeting macOS + iOS with a modern `async/await` surface.
@@ -18,7 +18,7 @@ targeting macOS + iOS with a modern `async/await` surface.
 商用授權二進位,需自行向 Solace 取得並解壓到專案根目錄:
 
 ```
-solace-swift/
+solace-mobile/
 ├─ solclient_macos/solclient_Darwin-universal2_opt_7.25.0.10/
 │  ├─ include/solclient/{solClient,solClientMsg,solCache,solClientDeprecated}.h
 │  └─ lib/  libsolclient.a (universal2), libssl.a, libcrypto.a, *.dylib
@@ -65,7 +65,7 @@ solace-swift/
 
 ### Package 佈局 (SwiftPM)
 ```
-solace-swift/
+solace-mobile/
 ├─ Package.swift
 ├─ scripts/
 │  └─ build-xcframework.sh        # Phase 0:合成 xcframework

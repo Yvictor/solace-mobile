@@ -1,5 +1,5 @@
 # ─── Vendored Solace SDK (proprietary, not committed) ───────────────
-# Obtain from Solace and extract here — see README.md
+# Obtain from Solace and extract locally — see swift/README.md
 solclient_ios/
 solclient_macos/
 *.tar.gz
@@ -7,6 +7,15 @@ solclient_macos/
 # Generated binary artifacts
 *.xcframework
 Frameworks/
+
+# Android Solace PoC local/proprietary artifacts
+android/app/libs/*.jar
+android/app/build/
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/jvm-smoke/build/
 
 # ─── SwiftPM ────────────────────────────────────────────────────────
 .build/

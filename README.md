@@ -1,67 +1,38 @@
-# solace-swift
+# solace-mobile
 
-Swift bindings for the [Solace PubSub+](https://solace.com/) C messaging API
-(`libsolclient`), targeting **macOS** and **iOS** with a modern Swift-native,
-`async/await` surface.
+Mobile experiments and bindings for Solace PubSub+ native messaging with
+compression support.
 
-> Status: **Phase 0 — bootstrapping.** Repository scaffolding only. The C
-> interop and Swift wrapper layers are being built out next.
+This repository is organized by platform:
 
-## Why
+- `android/` - Android proof of concept using the Solace PubSub+ Messaging API
+  for Java with native Solace compression.
+- `swift/` - Swift/iOS/macOS binding plan for the Solace C SDK.
 
-The Solace C SDK is a classic callback-based C API (opaque pointers,
-`void *user_p` context on every callback). This package wraps it in three
-layers so application code never touches raw C:
+## Current Status
 
-```
-┌─────────────────────────────────────────┐
-│  SolaceKit   high-level, async/await      │  ← app uses this
-│  Session / Message, AsyncStream           │
-├─────────────────────────────────────────┤
-│  SolaceCore  safe wrapper                  │  ← opaque-pointer lifetime,
-│  C-callback ↔ Swift bridging, Error map    │     return-code → Swift Error
-├─────────────────────────────────────────┤
-│  CSolace     C interop (module.modulemap)  │  ← exposes the 4 headers
-└─────────────────────────────────────────┘
-        libsolclient.a + libssl.a + libcrypto.a
-```
+### Android
 
-## Platform support
+The Android PoC has been validated on an Android emulator:
 
-| Target | Status | Notes |
-|--------|--------|-------|
-| macOS (arm64 + x86_64) | ✅ | universal2 static lib |
-| iOS device (arm64) | ✅ | device-only static slice |
-| iOS Simulator (Apple Silicon) | ❌ | SDK 7.25.0.10 ships **no** `arm64-apple-ios-simulator` slice — use a physical device, or run the simulator under Rosetta (x86_64) |
+- Connects to a Solace broker with the Java native API.
+- Enables native Solace compression via `withMessageCompression(3)`.
+- Subscribes to a wildcard topic.
+- Receives live `TXFG6` data.
 
-## Vendored SDK (not in this repo)
+The Solace Java SDK jars are proprietary and are not committed. See
+`android/README.md` for setup.
 
-The Solace SDK is proprietary licensed software and is **not committed** (see
-`.gitignore`). To build, obtain the C SDK from Solace and extract it here:
+### Swift
 
-```
-solace-swift/
-├─ solclient_macos/   # solclient_Darwin-universal2_opt_<version>/
-└─ solclient_ios/     # solclient-<version>/
-```
+The Swift side is still in planning/bootstrap. The Solace C SDK currently being
+evaluated does not include an Apple Silicon iOS Simulator slice, so iOS testing
+requires a physical device or an alternate SDK release.
 
-This package was developed against **solclient 7.25.0.10**. Each extracted SDK
-provides `include/solclient/{solClient,solClientMsg,solCache,solClientDeprecated}.h`
-and `lib/` with `libsolclient.a`, `libssl.a`, `libcrypto.a`.
+See `swift/README.md` and `swift/PLAN.md`.
 
-## Roadmap
+## Repository Hygiene
 
-- [ ] **Phase 0** — build an `xcframework` from the static libs (+ statically
-  link OpenSSL); verify `solClient_initialize()` links and runs
-- [ ] **Phase 1** — `CSolace` module map exposing the 4 headers
-- [ ] **Phase 2** — `SolaceCore`: context/session lifecycle, callback bridging
-  via `Unmanaged` + `user_p`, return-code → `SolaceError`
-- [ ] **Phase 3** — `SolaceKit`: `async/await` connect/subscribe,
-  `AsyncThrowingStream<Message>` for received messages
-- [ ] **Phase 4** — guaranteed messaging / flows, reconnect, docs, example app
-
-## License
-
-The Swift binding code in this repository is the project's own. The vendored
-Solace SDK and its bundled OpenSSL are covered by their respective licenses
-(see the SDK's `licenses.txt`) and are **not** redistributed here.
+Solace SDK archives, extracted proprietary SDKs, Android local jars, Gradle
+build output, Android Studio workspace files, and generated binary artifacts are
+excluded from git.
