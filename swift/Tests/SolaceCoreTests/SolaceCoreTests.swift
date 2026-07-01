@@ -15,6 +15,7 @@ import Testing
     #expect(configuration.compressionLevel == 0)
     #expect(configuration.connectTimeoutMilliseconds == 10_000)
     #expect(configuration.reconnectRetries == 0)
+    #expect(configuration.reconnectRetryWaitMilliseconds == 3_000)
 }
 
 @Test func solaceErrorDescriptionIncludesContext() {
@@ -34,4 +35,16 @@ import Testing
 @Test func deliveryModeMapsToPublicCases() {
     #expect(SolaceDeliveryMode.direct != SolaceDeliveryMode.persistent)
     #expect(SolaceDeliveryMode.nonPersistent != SolaceDeliveryMode.direct)
+}
+
+@Test func sessionEventIsEquatableAndCarriesDetail() {
+    let event = SolaceSessionEvent(
+        kind: .reconnected,
+        name: "Session reconnected",
+        detail: "host recovered"
+    )
+
+    #expect(event.kind == .reconnected)
+    #expect(event.name == "Session reconnected")
+    #expect(event.detail == "host recovered")
 }

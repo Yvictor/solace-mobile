@@ -79,6 +79,17 @@ On macOS the static Solace library still references Kerberos/GSS symbols, so
 the package links `gssapi_krb5` in addition to zlib and the bundled OpenSSL
 archives.
 
+## iOS packaging
+
+For local iOS device integration, generate a proprietary local xcframework:
+
+```bash
+bash swift/scripts/build-xcframework.sh
+```
+
+Details and simulator limits are documented in
+[`Docs/iOSPackaging.md`](Docs/iOSPackaging.md).
+
 ## macOS broker connect smoke
 
 `SolaceMacConnectSmoke` performs a real native Solace connection using values
@@ -136,6 +147,10 @@ try await session.publish(
 for try await message in session.messages {
     print(message.topic ?? "", message.payload.count)
 }
+
+for await event in session.events {
+    print(event.name, event.detail)
+}
 ```
 
 `SolaceCore` owns native context/session lifetime, maps return codes to
@@ -153,8 +168,9 @@ data before returning from the C callback.
   `AsyncThrowingStream<Message>` for received messages
 - [x] **Phase 4a** — publish foundation: direct/persistent/non-persistent
   delivery mode API, live direct publish smoke, reconnect subscription reapply
-- [ ] **Phase 4b** — iOS packaging strategy, guaranteed flow receive/ack,
-  reconnect hardening, docs, example app
+- [x] **Phase 4b** — iOS packaging strategy and reconnect/session event stream
+- [ ] **Phase 4c** — guaranteed flow receive/ack, reconnect stress tests,
+  example app
 
 ## License
 

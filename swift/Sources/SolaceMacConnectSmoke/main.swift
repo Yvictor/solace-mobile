@@ -77,6 +77,18 @@ struct SolaceMacConnectSmoke {
             )
             print("connect: Ok")
 
+            let eventReceiver = Task<Int, Never> {
+                var count = 0
+                for await event in session.events {
+                    count += 1
+                    print("session event #\(count): \(event.name)")
+                    if !event.detail.isEmpty {
+                        print("  detail: \(event.detail)")
+                    }
+                }
+                return count
+            }
+
             if let publishTopic {
                 try await session.publish(
                     topic: publishTopic,
@@ -110,7 +122,9 @@ struct SolaceMacConnectSmoke {
             session.close()
 
             let count = try await receiver.value
+            let eventCount = await eventReceiver.value
             print("messages received: \(count)")
+            print("session events received: \(eventCount)")
         } catch {
             fputs("FAILED: \(error)\n", stderr)
             exit(1)

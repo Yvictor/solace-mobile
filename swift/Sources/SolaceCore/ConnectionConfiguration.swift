@@ -8,6 +8,7 @@ public struct SolaceConnectionConfiguration: Sendable {
     public var compressionLevel: Int
     public var connectTimeoutMilliseconds: Int
     public var reconnectRetries: Int
+    public var reconnectRetryWaitMilliseconds: Int
 
     public init(
         host: String,
@@ -16,7 +17,8 @@ public struct SolaceConnectionConfiguration: Sendable {
         password: String,
         compressionLevel: Int = 0,
         connectTimeoutMilliseconds: Int = 10_000,
-        reconnectRetries: Int = 0
+        reconnectRetries: Int = 0,
+        reconnectRetryWaitMilliseconds: Int = 3_000
     ) {
         self.host = host
         self.vpn = vpn
@@ -25,5 +27,6 @@ public struct SolaceConnectionConfiguration: Sendable {
         self.compressionLevel = compressionLevel
         self.connectTimeoutMilliseconds = connectTimeoutMilliseconds
         self.reconnectRetries = reconnectRetries
+        self.reconnectRetryWaitMilliseconds = reconnectRetryWaitMilliseconds
     }
 }

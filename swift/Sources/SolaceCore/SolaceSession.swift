@@ -5,16 +5,24 @@ public final class SolaceSession: @unchecked Sendable {
     private var context: solClient_opaqueContext_pt?
     private var session: solClient_opaqueSession_pt?
     private let lock = NSLock()
-    private var continuation: AsyncThrowingStream<SolaceMessage, Error>.Continuation?
+    private var messageContinuation: AsyncThrowingStream<SolaceMessage, Error>.Continuation?
+    private var eventContinuation: AsyncStream<SolaceSessionEvent>.Continuation?
 
     public let messages: AsyncThrowingStream<SolaceMessage, Error>
+    public let events: AsyncStream<SolaceSessionEvent>
 
     private init() {
-        var localContinuation: AsyncThrowingStream<SolaceMessage, Error>.Continuation?
+        var localMessageContinuation: AsyncThrowingStream<SolaceMessage, Error>.Continuation?
         self.messages = AsyncThrowingStream { continuation in
-            localContinuation = continuation
+            localMessageContinuation = continuation
         }
-        self.continuation = localContinuation
+        self.messageContinuation = localMessageContinuation
+
+        var localEventContinuation: AsyncStream<SolaceSessionEvent>.Continuation?
+        self.events = AsyncStream { continuation in
+            localEventContinuation = continuation
+        }
+        self.eventContinuation = localEventContinuation
     }
 
     deinit {
@@ -121,8 +129,10 @@ public final class SolaceSession: @unchecked Sendable {
         let currentContext = context
         session = nil
         context = nil
-        let currentContinuation = continuation
-        continuation = nil
+        let currentMessageContinuation = messageContinuation
+        messageContinuation = nil
+        let currentEventContinuation = eventContinuation
+        eventContinuation = nil
         lock.unlock()
 
         if let currentSession {
@@ -135,7 +145,8 @@ public final class SolaceSession: @unchecked Sendable {
             _ = solClient_context_destroy(&mutableContext)
         }
 
-        currentContinuation?.finish()
+        currentMessageContinuation?.finish()
+        currentEventContinuation?.finish()
         SolaceEnvironment.shared.release()
     }
 
@@ -176,7 +187,7 @@ public final class SolaceSession: @unchecked Sendable {
         }
         let copied = SolaceMessage.copy(from: message)
         lock.lock()
-        let currentContinuation = continuation
+        let currentContinuation = messageContinuation
         lock.unlock()
         currentContinuation?.yield(copied)
         return SOLCLIENT_CALLBACK_OK
@@ -186,18 +197,23 @@ public final class SolaceSession: @unchecked Sendable {
         guard let eventInfo else {
             return
         }
+        let event = SolaceSessionEvent.copy(from: eventInfo)
+        lock.lock()
+        let currentEventContinuation = eventContinuation
+        lock.unlock()
+        currentEventContinuation?.yield(event)
+
         switch eventInfo.pointee.sessionEvent {
         case SOLCLIENT_SESSION_EVENT_DOWN_ERROR,
              SOLCLIENT_SESSION_EVENT_CONNECT_FAILED_ERROR:
-            let detail = eventInfo.pointee.info_p.map(String.init(cString:)) ?? ""
             let error = SolaceError(
                 operation: "session event",
-                returnCode: solClient_session_eventToString(eventInfo.pointee.sessionEvent).map(String.init(cString:)) ?? "Unknown",
+                returnCode: event.name,
                 subCode: "",
-                detail: detail
+                detail: event.detail
             )
             lock.lock()
-            let currentContinuation = continuation
+            let currentContinuation = messageContinuation
             lock.unlock()
             currentContinuation?.finish(throwing: error)
         default:
@@ -240,7 +256,8 @@ private func withSessionProperties<T>(
         SOLCLIENT_SESSION_PROP_SUBSCRIBE_BLOCKING, SOLCLIENT_PROP_ENABLE_VAL,
         SOLCLIENT_SESSION_PROP_REAPPLY_SUBSCRIPTIONS, SOLCLIENT_PROP_ENABLE_VAL,
         SOLCLIENT_SESSION_PROP_CONNECT_TIMEOUT_MS, "\(configuration.connectTimeoutMilliseconds)",
-        SOLCLIENT_SESSION_PROP_RECONNECT_RETRIES, "\(configuration.reconnectRetries)"
+        SOLCLIENT_SESSION_PROP_RECONNECT_RETRIES, "\(configuration.reconnectRetries)",
+        SOLCLIENT_SESSION_PROP_RECONNECT_RETRY_WAIT_MS, "\(configuration.reconnectRetryWaitMilliseconds)"
     ]
 
     let cStrings = values.map { strdup($0) }

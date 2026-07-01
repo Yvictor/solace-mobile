@@ -4,6 +4,8 @@ import SolaceCore
 public typealias SolaceConfiguration = SolaceConnectionConfiguration
 public typealias Message = SolaceMessage
 public typealias DeliveryMode = SolaceDeliveryMode
+public typealias SessionEvent = SolaceSessionEvent
+public typealias SessionEventKind = SolaceSessionEventKind
 
 public final class SolaceClient: Sendable {
     public init() {}
@@ -21,6 +23,10 @@ public final class SolaceKitSession: @unchecked Sendable {
 
     public var messages: AsyncThrowingStream<SolaceMessage, Error> {
         coreSession.messages
+    }
+
+    public var events: AsyncStream<SolaceSessionEvent> {
+        coreSession.events
     }
 
     init(coreSession: SolaceSession) {
