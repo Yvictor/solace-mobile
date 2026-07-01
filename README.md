@@ -37,6 +37,11 @@ The Swift side now has a macOS-verified native binding stack:
   controlled broker/network interruption tests.
 - `SolaceSwiftExampleApp` builds as a SwiftUI example app on macOS.
 
+The currently provided broker/client profile supports native compression and
+direct messages, but reports no guaranteed publish, guaranteed flow subscribe,
+or temporary endpoint capability. Guaranteed flow/ack live validation therefore
+requires a broker profile with those capabilities enabled.
+
 The Solace C SDK currently being evaluated does not include an Apple Silicon
 iOS Simulator slice, so iOS runtime testing requires a physical device or an
 alternate SDK release.

@@ -156,6 +156,29 @@ swift run --package-path swift SolaceMacConnectSmoke
 smoke into a pass/fail gate. The command exits non-zero if fewer messages are
 received than expected.
 
+For a self-contained guaranteed flow test, set `SOLACE_FLOW_TOPIC` instead of
+`SOLACE_QUEUE`. This creates a non-durable Topic Endpoint flow, publishes
+persistent messages to the same topic, receives them on the flow, and sends
+client acknowledgements:
+
+```bash
+SOLACE_FLOW_TOPIC='api/test' \
+SOLACE_EXPECT_QUEUE_MESSAGES='1' \
+SOLACE_FLOW_PUBLISH_COUNT='1' \
+swift run --package-path swift SolaceMacConnectSmoke
+```
+
+This requires the connected broker/client profile to report all of:
+
+- `PUB_GUARANTEED=true`
+- `SUB_FLOW_GUARANTEED=true`
+- `TEMP_ENDPOINT=true`
+
+The currently provided broker profile connects successfully with compression,
+but reports `PUB_GUARANTEED=false`, `SUB_FLOW_GUARANTEED=false`, and
+`TEMP_ENDPOINT=false`; guaranteed flow bind is therefore rejected before queue or
+Topic Endpoint ack can be live-validated on that profile.
+
 ## macOS reconnect stress smoke
 
 `SolaceMacReconnectSmoke` keeps a native Solace session open with automatic
@@ -249,7 +272,7 @@ data before returning from the C callback.
 - [x] **Phase 4c.2a** — SwiftUI example app
 - [x] **Phase 4c.2b** — queue/reconnect pass-fail smoke harnesses
 - [ ] **Phase 4c.2c** — broker-backed queue bind/ack live gate and induced
-  reconnect live gate
+  reconnect live gate on a broker/client profile with guaranteed flow support
 
 ## License
 

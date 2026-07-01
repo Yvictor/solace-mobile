@@ -61,6 +61,33 @@ import Testing
     #expect(configuration.startImmediately)
 }
 
+@Test func topicEndpointFlowConfigurationKeepsTopic() {
+    let configuration = SolaceQueueFlowConfiguration(
+        topicEndpointTopic: "api/test",
+        topicEndpointName: nil,
+        durable: false
+    )
+
+    #expect(configuration.queueName == "")
+    #expect(configuration.endpoint == .topicEndpoint(name: nil, topic: "api/test", durable: false))
+}
+
+@Test func sessionCapabilitiesIsEquatable() {
+    let capabilities = SolaceSessionCapabilities(
+        publishGuaranteed: true,
+        subscribeGuaranteedFlow: false,
+        temporaryEndpoint: true,
+        compression: true,
+        endpointManagement: false
+    )
+
+    #expect(capabilities.publishGuaranteed)
+    #expect(!capabilities.subscribeGuaranteedFlow)
+    #expect(capabilities.temporaryEndpoint)
+    #expect(capabilities.compression)
+    #expect(!capabilities.endpointManagement)
+}
+
 @Test func flowEventIsEquatableAndCarriesDetail() {
     let event = SolaceFlowEvent(
         kind: .active,

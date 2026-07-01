@@ -62,12 +62,14 @@ struct SolaceMacConnectSmoke {
         let password = requiredEnv("SOLACE_PASSWORD")
         let topic = env("SOLACE_TOPIC") ?? "TIC/v1/FOP/*/TFE/TXFG6"
         let queueName = env("SOLACE_QUEUE")
+        let flowTopic = env("SOLACE_FLOW_TOPIC")
         let publishTopic = env("SOLACE_PUBLISH_TOPIC")
         let publishText = env("SOLACE_PUBLISH_TEXT") ?? "solace-mobile swift smoke"
         let compressionLevel = intEnv("SOLACE_COMPRESSION_LEVEL", default: 0)
         let waitSeconds = uint64Env("SOLACE_WAIT_SECONDS", default: 10)
         let expectedDirectMessages = intEnv("SOLACE_EXPECT_DIRECT_MESSAGES", default: 0)
         let expectedQueueMessages = intEnv("SOLACE_EXPECT_QUEUE_MESSAGES", default: 0)
+        let flowPublishCount = intEnv("SOLACE_FLOW_PUBLISH_COUNT", default: max(expectedQueueMessages, 1))
 
         print("host: \(host)")
         print("vpn: \(vpn)")
@@ -87,6 +89,12 @@ struct SolaceMacConnectSmoke {
                 )
             )
             print("connect: Ok")
+            let capabilities = try await session.readCapabilities()
+            print("capability publish guaranteed: \(capabilities.publishGuaranteed)")
+            print("capability subscribe guaranteed flow: \(capabilities.subscribeGuaranteedFlow)")
+            print("capability temporary endpoint: \(capabilities.temporaryEndpoint)")
+            print("capability compression: \(capabilities.compression)")
+            print("capability endpoint management: \(capabilities.endpointManagement)")
 
             let eventReceiver = Task<Int, Never> {
                 var count = 0
@@ -109,8 +117,36 @@ struct SolaceMacConnectSmoke {
                 print("publish: Ok")
             }
 
-            if let queueName {
-                let flow = try await session.createQueueFlow(QueueFlowConfiguration(queueName: queueName))
+            if queueName != nil || flowTopic != nil {
+                guard capabilities.subscribeGuaranteedFlow else {
+                    throw MessagingError(
+                        operation: "flow smoke capability",
+                        returnCode: "Unsupported",
+                        subCode: "SUB_FLOW_GUARANTEED=false",
+                        detail: "Broker/client profile does not allow binding guaranteed flows."
+                    )
+                }
+                if flowTopic != nil {
+                    guard capabilities.publishGuaranteed, capabilities.temporaryEndpoint else {
+                        throw MessagingError(
+                            operation: "flow smoke capability",
+                            returnCode: "Unsupported",
+                            subCode: "PUB_GUARANTEED/TEMP_ENDPOINT=false",
+                            detail: "Self-contained topic endpoint smoke requires guaranteed publish and temporary endpoint support."
+                        )
+                    }
+                }
+
+                let flowConfiguration: QueueFlowConfiguration
+                if let queueName {
+                    flowConfiguration = QueueFlowConfiguration(queueName: queueName)
+                } else if let flowTopic {
+                    flowConfiguration = QueueFlowConfiguration(topicEndpointTopic: flowTopic)
+                } else {
+                    throw MessagingError(operation: "flow smoke", returnCode: "No endpoint", subCode: "", detail: "")
+                }
+
+                let flow = try await session.createQueueFlow(flowConfiguration)
                 print("queue flow bind: Ok")
 
                 let flowEvents = Task<Int, Never> {
@@ -139,6 +175,17 @@ struct SolaceMacConnectSmoke {
                         print("  ack: Ok")
                     }
                     return count
+                }
+
+                if let flowTopic {
+                    for index in 1...flowPublishCount {
+                        try await session.publish(
+                            topic: flowTopic,
+                            payload: Data("\(publishText) #\(index)".utf8),
+                            deliveryMode: .persistent
+                        )
+                        print("guaranteed publish #\(index): Ok")
+                    }
                 }
 
                 print("waiting \(waitSeconds) seconds for queue messages...")

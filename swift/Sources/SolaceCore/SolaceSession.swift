@@ -76,6 +76,13 @@ public final class SolaceSession: @unchecked Sendable {
         return try SolaceQueueFlow(session: session, configuration: configuration)
     }
 
+    public func readCapabilities() throws -> SolaceSessionCapabilities {
+        guard let session else {
+            throw SolaceError(operation: "solClient_session_isCapable", returnCode: "Not connected", subCode: "", detail: "")
+        }
+        return SolaceSessionCapabilities.read(from: session)
+    }
+
     public func publish(
         topic: String,
         payload: Data,

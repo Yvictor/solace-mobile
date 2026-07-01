@@ -5,6 +5,7 @@ public typealias SolaceConfiguration = SolaceConnectionConfiguration
 public typealias Message = SolaceMessage
 public typealias DeliveryMode = SolaceDeliveryMode
 public typealias MessagingError = SolaceError
+public typealias SessionCapabilities = SolaceSessionCapabilities
 public typealias SessionEvent = SolaceSessionEvent
 public typealias SessionEventKind = SolaceSessionEventKind
 public typealias QueueFlowConfiguration = SolaceQueueFlowConfiguration
@@ -32,6 +33,12 @@ public final class SolaceKitSession: @unchecked Sendable {
 
     public var events: AsyncStream<SolaceSessionEvent> {
         coreSession.events
+    }
+
+    public func readCapabilities() async throws -> SessionCapabilities {
+        try await Task.detached { [coreSession] in
+            try coreSession.readCapabilities()
+        }.value
     }
 
     init(coreSession: SolaceSession) {

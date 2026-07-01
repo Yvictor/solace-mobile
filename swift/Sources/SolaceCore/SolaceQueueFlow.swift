@@ -1,8 +1,13 @@
 import CSolace
 import Foundation
 
+public enum SolaceFlowEndpoint: Sendable, Equatable {
+    case queue(name: String, durable: Bool = true)
+    case topicEndpoint(name: String? = nil, topic: String, durable: Bool = false)
+}
+
 public struct SolaceQueueFlowConfiguration: Sendable, Equatable {
-    public var queueName: String
+    public var endpoint: SolaceFlowEndpoint
     public var bindTimeoutMilliseconds: Int
     public var windowSize: Int
     public var maximumUnacknowledgedMessages: Int
@@ -19,13 +24,46 @@ public struct SolaceQueueFlowConfiguration: Sendable, Equatable {
         reconnectRetryWaitMilliseconds: Int = 3_000,
         startImmediately: Bool = true
     ) {
-        self.queueName = queueName
+        self.endpoint = .queue(name: queueName, durable: true)
         self.bindTimeoutMilliseconds = bindTimeoutMilliseconds
         self.windowSize = windowSize
         self.maximumUnacknowledgedMessages = maximumUnacknowledgedMessages
         self.reconnectRetries = reconnectRetries
         self.reconnectRetryWaitMilliseconds = reconnectRetryWaitMilliseconds
         self.startImmediately = startImmediately
+    }
+
+    public init(
+        topicEndpointTopic: String,
+        topicEndpointName: String? = nil,
+        durable: Bool = false,
+        bindTimeoutMilliseconds: Int = 10_000,
+        windowSize: Int = 255,
+        maximumUnacknowledgedMessages: Int = -1,
+        reconnectRetries: Int = -1,
+        reconnectRetryWaitMilliseconds: Int = 3_000,
+        startImmediately: Bool = true
+    ) {
+        self.endpoint = .topicEndpoint(
+            name: topicEndpointName,
+            topic: topicEndpointTopic,
+            durable: durable
+        )
+        self.bindTimeoutMilliseconds = bindTimeoutMilliseconds
+        self.windowSize = windowSize
+        self.maximumUnacknowledgedMessages = maximumUnacknowledgedMessages
+        self.reconnectRetries = reconnectRetries
+        self.reconnectRetryWaitMilliseconds = reconnectRetryWaitMilliseconds
+        self.startImmediately = startImmediately
+    }
+
+    public var queueName: String {
+        switch endpoint {
+        case .queue(let name, _):
+            return name
+        case .topicEndpoint(let name, _, _):
+            return name ?? ""
+        }
     }
 }
 
@@ -186,19 +224,39 @@ private func withFlowProperties<T>(
     _ configuration: SolaceQueueFlowConfiguration,
     _ body: (solClient_propertyArray_pt) throws -> T
 ) rethrows -> T {
-    let values = [
+    var values = [
         SOLCLIENT_FLOW_PROP_BIND_BLOCKING, SOLCLIENT_PROP_ENABLE_VAL,
-        SOLCLIENT_FLOW_PROP_BIND_TIMEOUT_MS, "\(configuration.bindTimeoutMilliseconds)",
-        SOLCLIENT_FLOW_PROP_BIND_ENTITY_ID, SOLCLIENT_FLOW_PROP_BIND_ENTITY_QUEUE,
-        SOLCLIENT_FLOW_PROP_BIND_ENTITY_DURABLE, SOLCLIENT_PROP_ENABLE_VAL,
-        SOLCLIENT_FLOW_PROP_BIND_NAME, configuration.queueName,
+        SOLCLIENT_FLOW_PROP_BIND_TIMEOUT_MS, "\(configuration.bindTimeoutMilliseconds)"
+    ]
+
+    switch configuration.endpoint {
+    case .queue(let name, let durable):
+        values.append(contentsOf: [
+            SOLCLIENT_FLOW_PROP_BIND_ENTITY_ID, SOLCLIENT_FLOW_PROP_BIND_ENTITY_QUEUE,
+            SOLCLIENT_FLOW_PROP_BIND_ENTITY_DURABLE, durable ? SOLCLIENT_PROP_ENABLE_VAL : SOLCLIENT_PROP_DISABLE_VAL,
+            SOLCLIENT_FLOW_PROP_BIND_NAME, name
+        ])
+    case .topicEndpoint(let name, let topic, let durable):
+        values.append(contentsOf: [
+            SOLCLIENT_FLOW_PROP_BIND_ENTITY_ID, SOLCLIENT_FLOW_PROP_BIND_ENTITY_TE,
+            SOLCLIENT_FLOW_PROP_BIND_ENTITY_DURABLE, durable ? SOLCLIENT_PROP_ENABLE_VAL : SOLCLIENT_PROP_DISABLE_VAL,
+            SOLCLIENT_FLOW_PROP_TOPIC, topic
+        ])
+        if let name {
+            values.append(contentsOf: [
+                SOLCLIENT_FLOW_PROP_BIND_NAME, name
+            ])
+        }
+    }
+
+    values.append(contentsOf: [
         SOLCLIENT_FLOW_PROP_ACKMODE, SOLCLIENT_FLOW_PROP_ACKMODE_CLIENT,
         SOLCLIENT_FLOW_PROP_WINDOWSIZE, "\(configuration.windowSize)",
         SOLCLIENT_FLOW_PROP_MAX_UNACKED_MESSAGES, "\(configuration.maximumUnacknowledgedMessages)",
         SOLCLIENT_FLOW_PROP_MAX_RECONNECT_TRIES, "\(configuration.reconnectRetries)",
         SOLCLIENT_FLOW_PROP_RECONNECT_RETRY_INTERVAL_MS, "\(configuration.reconnectRetryWaitMilliseconds)",
         SOLCLIENT_FLOW_PROP_START_STATE, configuration.startImmediately ? SOLCLIENT_PROP_ENABLE_VAL : SOLCLIENT_PROP_DISABLE_VAL
-    ]
+    ])
 
     let cStrings = values.map { strdup($0) }
     defer {
