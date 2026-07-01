@@ -61,6 +61,60 @@ public final class SolaceSession: @unchecked Sendable {
         )
     }
 
+    public func publish(
+        topic: String,
+        payload: Data,
+        deliveryMode: SolaceDeliveryMode = .direct
+    ) throws {
+        guard let session else {
+            throw SolaceError(operation: "publish", returnCode: "Not connected", subCode: "", detail: "")
+        }
+
+        var message: solClient_opaqueMsg_pt?
+        try check("solClient_msg_alloc", solClient_msg_alloc(&message))
+        defer {
+            _ = solClient_msg_free(&message)
+        }
+
+        guard let message else {
+            throw SolaceError(operation: "solClient_msg_alloc", returnCode: "No message", subCode: "", detail: "")
+        }
+
+        try topic.withCString { topicPointer in
+            var destination = solClient_destination_t(
+                destType: SOLCLIENT_TOPIC_DESTINATION,
+                dest: topicPointer
+            )
+            try check(
+                "solClient_msg_setDestination",
+                solClient_msg_setDestination(
+                    message,
+                    &destination,
+                    MemoryLayout<solClient_destination_t>.size
+                )
+            )
+        }
+
+        try payload.withUnsafeBytes { bytes in
+            let baseAddress = bytes.baseAddress
+            try check(
+                "solClient_msg_setBinaryAttachment",
+                solClient_msg_setBinaryAttachment(
+                    message,
+                    baseAddress,
+                    solClient_uint32_t(payload.count)
+                )
+            )
+        }
+
+        try check(
+            "solClient_msg_setDeliveryMode",
+            solClient_msg_setDeliveryMode(message, deliveryMode.cValue)
+        )
+
+        try check("solClient_session_sendMsg", solClient_session_sendMsg(session, message))
+    }
+
     public func close() {
         lock.lock()
         let currentSession = session

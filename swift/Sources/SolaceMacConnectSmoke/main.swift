@@ -53,6 +53,8 @@ struct SolaceMacConnectSmoke {
         let username = requiredEnv("SOLACE_USERNAME")
         let password = requiredEnv("SOLACE_PASSWORD")
         let topic = env("SOLACE_TOPIC") ?? "TIC/v1/FOP/*/TFE/TXFG6"
+        let publishTopic = env("SOLACE_PUBLISH_TOPIC")
+        let publishText = env("SOLACE_PUBLISH_TEXT") ?? "solace-mobile swift smoke"
         let compressionLevel = Int(env("SOLACE_COMPRESSION_LEVEL") ?? "0") ?? 0
         let waitSeconds = UInt64(env("SOLACE_WAIT_SECONDS") ?? "10") ?? 10
 
@@ -74,6 +76,15 @@ struct SolaceMacConnectSmoke {
                 )
             )
             print("connect: Ok")
+
+            if let publishTopic {
+                try await session.publish(
+                    topic: publishTopic,
+                    payload: Data(publishText.utf8),
+                    deliveryMode: .direct
+                )
+                print("publish: Ok")
+            }
 
             try await session.subscribe(topic)
             print("subscribe: Ok")

@@ -30,3 +30,8 @@ import Testing
     #expect(error.description.contains("subCode=Login failure"))
     #expect(error.description.contains("detail=bad credentials"))
 }
+
+@Test func deliveryModeMapsToPublicCases() {
+    #expect(SolaceDeliveryMode.direct != SolaceDeliveryMode.persistent)
+    #expect(SolaceDeliveryMode.nonPersistent != SolaceDeliveryMode.direct)
+}

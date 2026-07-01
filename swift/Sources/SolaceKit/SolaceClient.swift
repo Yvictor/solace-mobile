@@ -3,6 +3,7 @@ import SolaceCore
 
 public typealias SolaceConfiguration = SolaceConnectionConfiguration
 public typealias Message = SolaceMessage
+public typealias DeliveryMode = SolaceDeliveryMode
 
 public final class SolaceClient: Sendable {
     public init() {}
@@ -35,6 +36,16 @@ public final class SolaceKitSession: @unchecked Sendable {
     public func unsubscribe(_ topic: String) async throws {
         try await Task.detached { [coreSession] in
             try coreSession.unsubscribe(topic)
+        }.value
+    }
+
+    public func publish(
+        topic: String,
+        payload: Data,
+        deliveryMode: DeliveryMode = .direct
+    ) async throws {
+        try await Task.detached { [coreSession] in
+            try coreSession.publish(topic: topic, payload: payload, deliveryMode: deliveryMode)
         }.value
     }
 

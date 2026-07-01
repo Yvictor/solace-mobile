@@ -91,6 +91,8 @@ SOLACE_VPN='vpn' \
 SOLACE_USERNAME='username' \
 SOLACE_PASSWORD='password' \
 SOLACE_TOPIC='TIC/v1/FOP/*/TFE/TXFG6' \
+SOLACE_PUBLISH_TOPIC='api/test' \
+SOLACE_PUBLISH_TEXT='solace-mobile swift smoke' \
 SOLACE_COMPRESSION_LEVEL='3' \
 SOLACE_WAIT_SECONDS='10' \
 swift run --package-path swift SolaceMacConnectSmoke
@@ -99,13 +101,14 @@ swift run --package-path swift SolaceMacConnectSmoke
 The smoke uses the public `SolaceKit` API and does:
 
 - async `SolaceClient.connect(...)`
+- optional direct publish when `SOLACE_PUBLISH_TOPIC` is set
 - `SolaceKitSession.subscribe(...)`
 - `for try await` over `session.messages`
 - unsubscribe/disconnect/destroy/cleanup
 
 The latest live run against the provided broker returned `connect: Ok`,
-`subscribe: Ok`, and received 34 direct messages in a 10-second window with
-compression level `3`.
+`publish: Ok` to `api/test`, `subscribe: Ok`, and received 20 direct messages
+in a 10-second window with compression level `3`.
 
 ## Library API
 
@@ -124,6 +127,11 @@ let session = try await client.connect(
 )
 
 try await session.subscribe("TIC/v1/FOP/*/TFE/TXFG6")
+try await session.publish(
+    topic: "api/test",
+    payload: Data("hello".utf8),
+    deliveryMode: .direct
+)
 
 for try await message in session.messages {
     print(message.topic ?? "", message.payload.count)
@@ -143,8 +151,10 @@ data before returning from the C callback.
   via `Unmanaged` + `user_p`, return-code → `SolaceError`
 - [x] **Phase 3** — `SolaceKit`: `async/await` connect/subscribe,
   `AsyncThrowingStream<Message>` for received messages
-- [ ] **Phase 4** — iOS packaging strategy, guaranteed messaging / flows,
-  reconnect, docs, example app
+- [x] **Phase 4a** — publish foundation: direct/persistent/non-persistent
+  delivery mode API, live direct publish smoke, reconnect subscription reapply
+- [ ] **Phase 4b** — iOS packaging strategy, guaranteed flow receive/ack,
+  reconnect hardening, docs, example app
 
 ## License
 
