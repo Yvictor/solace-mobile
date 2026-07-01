@@ -16,6 +16,7 @@ android/.gradle/
 android/.idea/
 android/local.properties
 android/jvm-smoke/build/
+android-poc/
 
 # ─── SwiftPM ────────────────────────────────────────────────────────
 .build/
