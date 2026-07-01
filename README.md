@@ -32,7 +32,9 @@ The Swift side now has a macOS-verified native binding stack:
 - `SolaceKit` exposes async connect, direct subscribe, publish, session events,
   and durable queue flow receive with client acknowledgements.
 - `SolaceMacConnectSmoke` has been live-tested with compression against the
-  provided broker.
+  provided broker and can now enforce direct/queue message-count gates.
+- `SolaceMacReconnectSmoke` provides a pass/fail reconnect event gate for
+  controlled broker/network interruption tests.
 - `SolaceSwiftExampleApp` builds as a SwiftUI example app on macOS.
 
 The Solace C SDK currently being evaluated does not include an Apple Silicon

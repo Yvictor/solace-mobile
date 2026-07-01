@@ -130,6 +130,7 @@ SOLACE_PUBLISH_TOPIC='api/test' \
 SOLACE_PUBLISH_TEXT='solace-mobile swift smoke' \
 SOLACE_COMPRESSION_LEVEL='3' \
 SOLACE_WAIT_SECONDS='10' \
+SOLACE_EXPECT_DIRECT_MESSAGES='1' \
 swift run --package-path swift SolaceMacConnectSmoke
 ```
 
@@ -146,8 +147,38 @@ of direct topic subscribe. The queue must already exist on the broker and the
 username must be allowed to consume it.
 
 ```bash
-SOLACE_QUEUE='queue/name' swift run --package-path swift SolaceMacConnectSmoke
+SOLACE_QUEUE='queue/name' \
+SOLACE_EXPECT_QUEUE_MESSAGES='1' \
+swift run --package-path swift SolaceMacConnectSmoke
 ```
+
+`SOLACE_EXPECT_DIRECT_MESSAGES` and `SOLACE_EXPECT_QUEUE_MESSAGES` turn the
+smoke into a pass/fail gate. The command exits non-zero if fewer messages are
+received than expected.
+
+## macOS reconnect stress smoke
+
+`SolaceMacReconnectSmoke` keeps a native Solace session open with automatic
+reconnect enabled and counts reconnect lifecycle events. To validate reconnect
+handling, run it against a broker or network path you can deliberately interrupt
+and restore during the wait window:
+
+```bash
+SOLACE_HOST='host:port' \
+SOLACE_VPN='vpn' \
+SOLACE_USERNAME='username' \
+SOLACE_PASSWORD='password' \
+SOLACE_TOPIC='TIC/v1/FOP/*/TFE/TXFG6' \
+SOLACE_COMPRESSION_LEVEL='3' \
+SOLACE_RECONNECT_RETRIES='-1' \
+SOLACE_RECONNECT_RETRY_WAIT_MS='1000' \
+SOLACE_RECONNECT_WAIT_SECONDS='60' \
+SOLACE_EXPECT_RECONNECTS='1' \
+swift run --package-path swift SolaceMacReconnectSmoke
+```
+
+The smoke exits non-zero when the observed `reconnected` event count is lower
+than `SOLACE_EXPECT_RECONNECTS`.
 
 The latest live run against the provided broker returned `connect: Ok`,
 `publish: Ok` to `api/test`, `subscribe: Ok`, and received 11 direct messages
@@ -215,8 +246,10 @@ data before returning from the C callback.
   delivery mode API, live direct publish smoke, reconnect subscription reapply
 - [x] **Phase 4b** — iOS packaging strategy and reconnect/session event stream
 - [x] **Phase 4c.1** — guaranteed queue flow receive/ack API foundation
-- [ ] **Phase 4c.2** — broker-backed queue bind/ack smoke, reconnect stress tests,
-  example app
+- [x] **Phase 4c.2a** — SwiftUI example app
+- [x] **Phase 4c.2b** — queue/reconnect pass-fail smoke harnesses
+- [ ] **Phase 4c.2c** — broker-backed queue bind/ack live gate and induced
+  reconnect live gate
 
 ## License
 

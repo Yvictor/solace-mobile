@@ -4,6 +4,7 @@ import SolaceCore
 public typealias SolaceConfiguration = SolaceConnectionConfiguration
 public typealias Message = SolaceMessage
 public typealias DeliveryMode = SolaceDeliveryMode
+public typealias MessagingError = SolaceError
 public typealias SessionEvent = SolaceSessionEvent
 public typealias SessionEventKind = SolaceSessionEventKind
 public typealias QueueFlowConfiguration = SolaceQueueFlowConfiguration

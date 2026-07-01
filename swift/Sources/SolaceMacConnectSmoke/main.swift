@@ -45,6 +45,14 @@ func requiredEnv(_ name: String) -> String {
     return value
 }
 
+func intEnv(_ name: String, default defaultValue: Int) -> Int {
+    Int(env(name) ?? "") ?? defaultValue
+}
+
+func uint64Env(_ name: String, default defaultValue: UInt64) -> UInt64 {
+    UInt64(env(name) ?? "") ?? defaultValue
+}
+
 @main
 struct SolaceMacConnectSmoke {
     static func main() async {
@@ -56,8 +64,10 @@ struct SolaceMacConnectSmoke {
         let queueName = env("SOLACE_QUEUE")
         let publishTopic = env("SOLACE_PUBLISH_TOPIC")
         let publishText = env("SOLACE_PUBLISH_TEXT") ?? "solace-mobile swift smoke"
-        let compressionLevel = Int(env("SOLACE_COMPRESSION_LEVEL") ?? "0") ?? 0
-        let waitSeconds = UInt64(env("SOLACE_WAIT_SECONDS") ?? "10") ?? 10
+        let compressionLevel = intEnv("SOLACE_COMPRESSION_LEVEL", default: 0)
+        let waitSeconds = uint64Env("SOLACE_WAIT_SECONDS", default: 10)
+        let expectedDirectMessages = intEnv("SOLACE_EXPECT_DIRECT_MESSAGES", default: 0)
+        let expectedQueueMessages = intEnv("SOLACE_EXPECT_QUEUE_MESSAGES", default: 0)
 
         print("host: \(host)")
         print("vpn: \(vpn)")
@@ -141,6 +151,14 @@ struct SolaceMacConnectSmoke {
                 let flowEventCount = await flowEvents.value
                 print("guaranteed messages received: \(flowCount)")
                 print("flow events received: \(flowEventCount)")
+                if flowCount < expectedQueueMessages {
+                    throw MessagingError(
+                        operation: "queue smoke",
+                        returnCode: "Too few messages",
+                        subCode: "",
+                        detail: "expected at least \(expectedQueueMessages), received \(flowCount)"
+                    )
+                }
                 session.close()
 
                 let eventCount = await eventReceiver.value
@@ -175,6 +193,14 @@ struct SolaceMacConnectSmoke {
             let eventCount = await eventReceiver.value
             print("messages received: \(count)")
             print("session events received: \(eventCount)")
+            if count < expectedDirectMessages {
+                throw MessagingError(
+                    operation: "direct smoke",
+                    returnCode: "Too few messages",
+                    subCode: "",
+                    detail: "expected at least \(expectedDirectMessages), received \(count)"
+                )
+            }
         } catch {
             fputs("FAILED: \(error)\n", stderr)
             exit(1)
