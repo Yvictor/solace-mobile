@@ -4,8 +4,9 @@ Swift bindings for the [Solace PubSub+](https://solace.com/) C messaging API
 (`libsolclient`), targeting **macOS** and **iOS** with a modern Swift-native,
 `async/await` surface.
 
-> Status: **Phase 3 — Swift async subscribe path verified on macOS.** The live
-> broker smoke uses `SolaceKit -> SolaceCore -> CSolace` with native compression.
+> Status: **Phase 4c.2 in progress — Swift native broker smoke and example app
+> build are verified on macOS.** The live broker smoke uses
+> `SolaceKit -> SolaceCore -> CSolace` with native compression.
 
 ## Why
 
@@ -89,6 +90,29 @@ bash swift/scripts/build-xcframework.sh
 
 Details and simulator limits are documented in
 [`Docs/iOSPackaging.md`](Docs/iOSPackaging.md).
+
+## SwiftUI example app
+
+`SolaceSwiftExampleApp` is a macOS SwiftUI example that exercises the public
+`SolaceKit` API. It supports:
+
+- native connect/disconnect with compression
+- direct topic subscribe
+- optional publish to a topic
+- durable queue flow receive with client ack when a broker queue is available
+- session and flow event logs
+
+Build it from the repository root:
+
+```bash
+swift build --package-path swift --product SolaceSwiftExampleApp
+```
+
+Run it locally:
+
+```bash
+swift run --package-path swift SolaceSwiftExampleApp
+```
 
 ## macOS broker connect smoke
 

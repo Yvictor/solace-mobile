@@ -24,7 +24,8 @@ let package = Package(
         .library(name: "SolaceCore", targets: ["SolaceCore"]),
         .library(name: "SolaceKit", targets: ["SolaceKit"]),
         .executable(name: "SolaceMacSmoke", targets: ["SolaceMacSmoke"]),
-        .executable(name: "SolaceMacConnectSmoke", targets: ["SolaceMacConnectSmoke"])
+        .executable(name: "SolaceMacConnectSmoke", targets: ["SolaceMacConnectSmoke"]),
+        .executable(name: "SolaceSwiftExampleApp", targets: ["SolaceSwiftExampleApp"])
     ],
     targets: [
         .target(
@@ -52,6 +53,11 @@ let package = Package(
         ),
         .executableTarget(
             name: "SolaceMacConnectSmoke",
+            dependencies: ["SolaceKit"],
+            linkerSettings: solclientLinkerSettings
+        ),
+        .executableTarget(
+            name: "SolaceSwiftExampleApp",
             dependencies: ["SolaceKit"],
             linkerSettings: solclientLinkerSettings
         ),

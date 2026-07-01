@@ -7,7 +7,7 @@ This repository is organized by platform:
 
 - `android/` - Android proof of concept using the Solace PubSub+ Messaging API
   for Java with native Solace compression.
-- `swift/` - Swift/iOS/macOS binding plan for the Solace C SDK.
+- `swift/` - Swift/iOS/macOS binding for the Solace C SDK.
 
 ## Current Status
 
@@ -25,9 +25,19 @@ The Solace Java SDK jars are proprietary and are not committed. See
 
 ### Swift
 
-The Swift side is still in planning/bootstrap. The Solace C SDK currently being
-evaluated does not include an Apple Silicon iOS Simulator slice, so iOS testing
-requires a physical device or an alternate SDK release.
+The Swift side now has a macOS-verified native binding stack:
+
+- `CSolace` imports the Solace C SDK headers through SwiftPM.
+- `SolaceCore` owns context/session/flow lifetime and callback bridging.
+- `SolaceKit` exposes async connect, direct subscribe, publish, session events,
+  and durable queue flow receive with client acknowledgements.
+- `SolaceMacConnectSmoke` has been live-tested with compression against the
+  provided broker.
+- `SolaceSwiftExampleApp` builds as a SwiftUI example app on macOS.
+
+The Solace C SDK currently being evaluated does not include an Apple Silicon
+iOS Simulator slice, so iOS runtime testing requires a physical device or an
+alternate SDK release.
 
 See `swift/README.md` and `swift/PLAN.md`.
 
