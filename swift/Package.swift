@@ -4,6 +4,15 @@ import PackageDescription
 
 let sdkRoot = "../solclient_macos/solclient_Darwin-universal2_opt_7.25.0.10"
 let sdkLib = "\(sdkRoot)/lib"
+let solclientLinkerSettings: [LinkerSetting] = [
+    .linkedLibrary("gssapi_krb5"),
+    .unsafeFlags([
+        "\(sdkLib)/libsolclient.a.7.25.0.10",
+        "\(sdkLib)/libssl.a",
+        "\(sdkLib)/libcrypto.a",
+        "-lz"
+    ])
+]
 
 let package = Package(
     name: "SolaceMobileSwift",
@@ -12,7 +21,8 @@ let package = Package(
     ],
     products: [
         .library(name: "CSolace", targets: ["CSolace"]),
-        .executable(name: "SolaceMacSmoke", targets: ["SolaceMacSmoke"])
+        .executable(name: "SolaceMacSmoke", targets: ["SolaceMacSmoke"]),
+        .executable(name: "SolaceMacConnectSmoke", targets: ["SolaceMacConnectSmoke"])
     ],
     targets: [
         .target(
@@ -26,15 +36,12 @@ let package = Package(
         .executableTarget(
             name: "SolaceMacSmoke",
             dependencies: ["CSolace"],
-            linkerSettings: [
-                .linkedLibrary("gssapi_krb5"),
-                .unsafeFlags([
-                    "\(sdkLib)/libsolclient.a.7.25.0.10",
-                    "\(sdkLib)/libssl.a",
-                    "\(sdkLib)/libcrypto.a",
-                    "-lz"
-                ])
-            ]
+            linkerSettings: solclientLinkerSettings
+        ),
+        .executableTarget(
+            name: "SolaceMacConnectSmoke",
+            dependencies: ["CSolace"],
+            linkerSettings: solclientLinkerSettings
         )
     ]
 )

@@ -51,7 +51,7 @@ and `lib/` with `libsolclient.a`, `libssl.a`, `libcrypto.a`.
 
 ## macOS smoke test
 
-The current SwiftPM package verifies the first binding layer:
+The local SDK smoke verifies the first binding layer:
 
 - `CSolace` imports the Solace C headers through a small C shim.
 - `SolaceMacSmoke` statically links `libsolclient.a`, `libssl.a`, and
@@ -79,11 +79,42 @@ On macOS the static Solace library still references Kerberos/GSS symbols, so
 the package links `gssapi_krb5` in addition to zlib and the bundled OpenSSL
 archives.
 
+## macOS broker connect smoke
+
+`SolaceMacConnectSmoke` performs a real native Solace connection using values
+from environment variables. It does not store credentials in the repository.
+
+```bash
+SOLACE_HOST='host:port' \
+SOLACE_VPN='vpn' \
+SOLACE_USERNAME='username' \
+SOLACE_PASSWORD='password' \
+SOLACE_TOPIC='TIC/v1/FOP/*/TFE/TXFG6' \
+SOLACE_COMPRESSION_LEVEL='3' \
+SOLACE_WAIT_SECONDS='10' \
+swift run --package-path swift SolaceMacConnectSmoke
+```
+
+The smoke does:
+
+- `solClient_initialize()`
+- context/session creation
+- blocking `solClient_session_connect()`
+- `solClient_session_topicSubscribeExt(...WAITFORCONFIRM...)`
+- waits for direct messages
+- unsubscribe/disconnect/destroy/cleanup
+
+The first live run against the provided broker returned `Session up`,
+`solClient_session_connect: Ok`, and `solClient_session_topicSubscribeExt: Ok`
+with compression level `3`. No messages arrived during the 10-second wait
+window.
+
 ## Roadmap
 
 - [x] **Phase 0** — verify `solClient_initialize()` links and runs on macOS
 - [x] **Phase 1** — `CSolace` C interop target exposing the required headers
-- [ ] **Phase 2** — `SolaceCore`: context/session lifecycle, callback bridging
+- [x] **Phase 2a** — native broker connect/subscribe smoke with compression
+- [ ] **Phase 2b** — `SolaceCore`: context/session lifecycle, callback bridging
   via `Unmanaged` + `user_p`, return-code → `SolaceError`
 - [ ] **Phase 3** — `SolaceKit`: `async/await` connect/subscribe,
   `AsyncThrowingStream<Message>` for received messages
